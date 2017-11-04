@@ -1,0 +1,89 @@
+#!/bin/bash
+#
+# Ruby on Rails useful tools
+#
+
+COMMAND="$1"
+
+if [ -f ror.conf ]; then
+  source ror.conf
+fi
+
+if [ "$COMMAND" = 'configure-nginx' ]
+then
+
+  # adding the reverse proxy to nginx.config
+  if [ -z "$LABEL" ]; then
+    echo -n "Label: "
+    read LABEL
+    echo "LABEL=\"$LABEL\"" >> ror.conf
+  fi
+
+  if grep -Fq "# Reverse Proxy $LABEL" /etc/nginx/nginx.conf
+  then
+    echo -n "Entry already exists with label '$LABEL'."
+  else
+    if [ -z "$DNSNAME" ]; then
+      echo -n "DNS: "
+      read DNSNAME
+      echo "DNSNAME=$DNSNAME" >> ror.conf
+    fi
+    if [ -z "$PORTNUMBER" ]; then
+      echo -n "PORT Number: "
+      read PORTNUMBER
+      echo "PORTNUMBER=$PORTNUMBER" >> ror.conf
+    fi
+
+    ENTRY="\n\n        # Reverse Proxy $LABEL\n        server {\n           listen         80;\n           server_name    $DNSNAME;\n\n          location \/ {\n            proxy_pass   http://192.168.153.129:$PORTNUMBER;\n          }\n        }"
+
+    MARKER='## Reverse Proxy Settings ##'
+
+    sudo sed -i "s@$MARKER@$MARKER$ENTRY@" /etc/nginx/nginx.conf
+    sudo service nginx restart
+  fi
+
+elif [ "$COMMAND" = 'up' ]
+then
+
+  # run rails for the right service
+
+  if [ -z "$PORTNUMBER" ]; then
+    echo -n "PORT Number: "
+    read PORTNUMBER
+    echo "PORTNUMBER=$PORTNUMBER" >> ror.conf
+  fi
+
+  bundle exec rails s -b 0.0.0.0 -p $PORTNUMBER
+
+elif [ "$COMMAND" = 'db-transfer' ]
+then
+
+  if [ -z "$MYSQL_REMOTE_HOST" ]; then
+    echo -n "Remote MySql Hostname: "
+    read MYSQL_REMOTE_HOST
+    echo "MYSQL_REMOTE_HOST=$MYSQL_REMOTE_HOST" >> ror.conf
+  fi
+
+  if [ -z "$MYSQL_REMOTE_USERNAME" ]; then
+    echo -n "Remote MySql Username: "
+    read MYSQL_REMOTE_USERNAME
+    echo "MYSQL_REMOTE_USERNAME=$MYSQL_REMOTE_USERNAME" >> ror.conf
+  fi
+
+  if [ -z "$MYSQL_REMOTE_DB_NAME" ]; then
+    echo -n "Remote MySql DB Name: "
+    read MYSQL_REMOTE_DB_NAME
+    echo "MYSQL_REMOTE_DB_NAME=$MYSQL_REMOTE_DB_NAME" >> ror.conf
+  fi
+
+  if [ -z "$MYSQL_LOCAL_DB_NAME" ]; then
+    echo -n "Local MySql DB Name: "
+    read MYSQL_LOCAL_DB_NAME
+    echo "MYSQL_LOCAL_DB_NAME=$MYSQL_LOCAL_DB_NAME" >> ror.conf
+  fi
+
+  mysqldump -u $MYSQL_REMOTE_USERNAME -p -h $MYSQL_REMOTE_HOST $MYSQL_REMOTE_DB_NAME > db.sql
+  mysql -u root $MYSQL_LOCAL_DB_NAME < db.sql
+  rm db.sql
+
+fi
