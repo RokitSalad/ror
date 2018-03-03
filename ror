@@ -34,7 +34,7 @@ then
       echo "PORTNUMBER=$PORTNUMBER" >> ror.conf
     fi
 
-    ENTRY="\n\n        # Reverse Proxy $LABEL\n        server {\n           listen         80;\n           server_name    $DNSNAME;\n\n          location \/ {\n            proxy_pass   http://192.168.153.129:$PORTNUMBER;\n          }\n        }"
+    ENTRY="\n\n        # Reverse Proxy $LABEL\n        server {\n           listen         80;\n           server_name    $DNSNAME;\n\n          location \/ {\n            proxy_pass   http://0.0.0.0:$PORTNUMBER;\n          }\n        }"
 
     MARKER='## Reverse Proxy Settings ##'
 
@@ -53,6 +53,14 @@ then
     echo "PORTNUMBER=$PORTNUMBER" >> ror.conf
   fi
 
+  if [ -z "$DNSNAME" ]; then
+    echo -n "DNS: "
+    read DNSNAME
+    echo "DNSNAME=$DNSNAME" >> ror.conf
+  fi
+
+  NEWLINE=$'\n'
+  echo -n "Starting rails process, exposed via: $DNSNAME ${NEWLINE}"
   bundle exec rails s -b 0.0.0.0 -p $PORTNUMBER
 
 elif [ "$COMMAND" = 'db-transfer' ]
